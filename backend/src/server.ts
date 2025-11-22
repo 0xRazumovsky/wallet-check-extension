@@ -6,7 +6,7 @@ import riskRouter from "./routes/risk.js";
 import explainRouter from "./routes/explain.js";
 
 const app = express();
-const logger = pino({ level: process.env.LOG_LEVEL || "info" });
+const logger = pino.pino({ level: process.env.LOG_LEVEL || "info" });
 
 app.use(cors());
 app.use(express.json({ limit: "1mb" }));

@@ -11,16 +11,26 @@ const riskSchema = z.object({
   to: z.string().optional(),
   data: z.string(),
   decoded: z.any().optional(),
-  bytecode: z.string().optional()
+  bytecode: z.string().optional(),
 });
 
 router.post("/", async (req, res) => {
   const parsed = riskSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: parsed.error.message });
+  if (!parsed.success)
+    return res.status(400).json({ error: parsed.error.message });
 
   const { data, decoded, bytecode } = parsed.data;
   const bytecodeMeta = bytecode ? analyzeBytecode(bytecode) : undefined;
-  const risk = evaluateRisk({ decoded: (decoded as DecodedCall) ?? null, data, bytecodeMeta });
+
+  if (!bytecodeMeta) {
+    throw new Error("Bytecode not provided");
+  }
+
+  const risk = evaluateRisk({
+    decoded: (decoded as DecodedCall) ?? null,
+    data,
+    bytecodeMeta,
+  });
 
   return res.json({ risk });
 });
