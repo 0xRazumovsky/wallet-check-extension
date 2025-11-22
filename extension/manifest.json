@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "What Did I Just Sign?",
+  "version": "0.1.0",
+  "description": "Intercepts Ethereum transactions and explains what you are signing.",
+  "permissions": ["scripting", "storage", "tabs", "activeTab"],
+  "host_permissions": ["http://localhost:4000/*", "https://cloudflare-eth.com/*", "https://*/*"],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "action": {
+    "default_title": "What Did I Just Sign?",
+    "default_popup": "popup/index.html"
+  }
+}

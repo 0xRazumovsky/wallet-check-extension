@@ -1,0 +1,23 @@
+{
+  "name": "wallet-check",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@types/express": "^5.0.5",
+    "axios": "^1.13.2",
+    "ethers": "^6.15.0",
+    "express": "^5.1.0",
+    "pino": "^10.1.0",
+    "tsc": "^2.0.4",
+    "typescript": "^5.9.3",
+    "zod": "^4.1.12"
+  }
+}
