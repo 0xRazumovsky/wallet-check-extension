@@ -14,11 +14,14 @@ function cacheKey(chainId: number, address: string) {
   return `${chainId}:${address.toLowerCase()}`;
 }
 
-async function fetchSourcifyAbi(chainId: number, address: string): Promise<any[] | null> {
+async function fetchSourcifyAbi(
+  chainId: number,
+  address: string
+): Promise<any[] | null> {
   const lowered = address.toLowerCase();
   const urls = [
     `${SOURCIFY_BASE}/full_match/${chainId}/${lowered}/metadata.json`,
-    `${SOURCIFY_BASE}/partial_match/${chainId}/${lowered}/metadata.json`
+    `${SOURCIFY_BASE}/partial_match/${chainId}/${lowered}/metadata.json`,
   ];
 
   for (const url of urls) {
@@ -39,12 +42,15 @@ function etherscanBase(chainId: number): string | null {
   const map: Record<number, string> = {
     1: "https://api.etherscan.io",
     5: "https://api-goerli.etherscan.io",
-    11155111: "https://api-sepolia.etherscan.io"
+    11155111: "https://api-sepolia.etherscan.io",
   };
   return map[chainId] ?? null;
 }
 
-async function fetchEtherscanAbi(chainId: number, address: string): Promise<any[] | null> {
+async function fetchEtherscanAbi(
+  chainId: number,
+  address: string
+): Promise<any[] | null> {
   const base = etherscanBase(chainId);
   if (!base) return null;
   const apiKey = process.env.ETHERSCAN_API_KEY ?? "";
@@ -81,11 +87,14 @@ export async function getAbi(chainId: number, address?: string) {
   return null;
 }
 
-function formatParams(inputs: readonly ParamType[], args: readonly unknown[]): DecodedParameter[] {
+function formatParams(
+  inputs: readonly ParamType[],
+  args: readonly unknown[]
+): DecodedParameter[] {
   return inputs.map((input, idx) => ({
     name: input.name || `arg${idx}`,
     type: input.type,
-    value: args[idx]
+    value: args[idx],
   }));
 }
 
@@ -97,9 +106,10 @@ const knownSelectors: Record<string, string> = {
   "0xd0e30db0": "deposit()",
   "0x41441d3b": "mint(address,uint256)",
   "0x9dc29fac": "burn(uint256)",
-  "0x38ed1739": "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
+  "0x38ed1739":
+    "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
   "0x7ff36ab5": "swapExactETHForTokens(uint256,address[],address,uint256)",
-  "0xac9650d8": "multicall(bytes[])"
+  "0xac9650d8": "multicall(bytes[])",
 };
 
 export function inferSignatureFromData(data: string): string | undefined {
@@ -123,7 +133,9 @@ export function decodeCalldata(
         method: parsed.name,
         signature: parsed.signature,
         params: formatParams(parsed.fragment.inputs, parsed.args),
-        humanReadable: `${parsed.name}(${parsed.args.map((arg) => arg).join(", ")})`
+        humanReadable: `${parsed.name}(${parsed.args
+          .map((arg) => arg)
+          .join(", ")})`,
       };
     } catch (err) {
       // fall through
@@ -140,7 +152,9 @@ export function decodeCalldata(
         method: parsed.name,
         signature,
         params: formatParams(parsed.fragment.inputs, parsed.args),
-        humanReadable: `${parsed.name}(${parsed.args.map((arg) => arg).join(", ")})`
+        humanReadable: `${parsed.name}(${parsed.args
+          .map((arg) => arg)
+          .join(", ")})`,
       };
     } catch (err) {
       // ignore
@@ -149,3 +163,8 @@ export function decodeCalldata(
 
   return null;
 }
+
+// TODO: Проверять возраст контракта (<30 дней = повышенный риск)
+// TODO: Верификация на Etherscan (not verified = high risk)
+// TODO: Репутация адреса: есть ли в известных списках: ChainAbuse, Etherscan labels, Объем транзакций, связь с известными протоколами
+// TODO: Симуляция транзакции (что произойдет)
