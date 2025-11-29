@@ -1,0 +1,38 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  --bg-primary: #0f1419;
+  --bg-secondary: #1a1f2e;
+  --text-primary: #ffffff;
+  --text-secondary: #8b949e;
+  --safe: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --shield: #8b5cf6;
+}
+
+body {
+  @apply min-h-screen;
+  background: radial-gradient(80% 80% at 50% 20%, rgba(139, 92, 246, 0.08), transparent),
+    radial-gradient(60% 60% at 80% 0%, rgba(16, 185, 129, 0.06), transparent),
+    var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.glass {
+  background: rgba(26, 31, 46, 0.8);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  box-shadow: 0 16px 60px rgba(0, 0, 0, 0.35);
+}
+
+.badge {
+  @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide;
+}
+
+.grid-cols-preview {
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}

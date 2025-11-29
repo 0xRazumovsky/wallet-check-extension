@@ -26,12 +26,17 @@ export default function App() {
   const [data, setData] = useState<ExplainResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [requestId, setRequestId] = useState<string | null>(null);
+  const [demoLoading, setDemoLoading] = useState(false);
+  const [demoError, setDemoError] = useState<string | null>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const id = params.get("requestId");
     setRequestId(id);
-    if (!id) return;
+    if (!id) {
+      setLoading(false);
+      return;
+    }
     chrome.runtime.sendMessage({ type: "POPUP_INIT", id }, (response) => {
       setData(response as ExplainResult);
       setLoading(false);
@@ -40,6 +45,36 @@ export default function App() {
 
   const topReasons = useMemo(() => data?.risk.reasons.slice(0, 2) ?? [], [data]);
 
+  const runDemo = async () => {
+    setDemoError(null);
+    setDemoLoading(true);
+    try {
+      const backend =
+        (import.meta.env.VITE_BACKEND_URL as string | undefined) || "http://localhost:4000";
+      const demoPayload = {
+        chainId: 1,
+        to: "0x000000000000000000000000000000000000dead",
+        data:
+          "0x095ea7b3000000000000000000000000000000000000000000000000000000000000beef" +
+          "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        value: "0x0"
+      };
+      const res = await fetch(`${backend}/explain`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(demoPayload)
+      });
+      if (!res.ok) throw new Error(`Backend responded ${res.status}`);
+      const payload = (await res.json()) as ExplainResult;
+      setData(payload);
+    } catch (err: any) {
+      setDemoError(err?.message ?? "Failed to run demo");
+    } finally {
+      setDemoLoading(false);
+      setLoading(false);
+    }
+  };
+
   const decision = (choice: "proceed" | "abort") => {
     if (!requestId) return;
     chrome.runtime.sendMessage({ type: "POPUP_DECISION", id: requestId, decision: choice });
@@ -47,8 +82,27 @@ export default function App() {
   };
 
   if (loading) {
+    return <div className="p-6 w-96 text-center">Loading transaction details...</div>;
+  }
+
+  if (!requestId) {
     return (
-      <div className="p-6 w-96 text-center">Loading transaction details...</div>
+      <div className="p-6 w-96 space-y-2 text-center text-slate-700">
+        <div className="font-semibold">No transaction context</div>
+        <div className="text-sm text-slate-500">
+          Trigger the popup by sending a transaction in a dapp. The extension will pause it and show details here.
+        </div>
+        <div className="pt-2 space-y-2">
+          <button
+            className="w-full bg-slate-900 hover:bg-slate-800 text-white px-3 py-2 rounded-md text-sm font-medium disabled:opacity-60"
+            onClick={runDemo}
+            disabled={demoLoading}
+          >
+            {demoLoading ? "Running demo..." : "Run demo explain"}
+          </button>
+          {demoError && <div className="text-xs text-red-600">{demoError}</div>}
+        </div>
+      </div>
     );
   }
 

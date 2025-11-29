@@ -75,7 +75,7 @@ async function callBackend(payload: ExplainPayload): Promise<ExplainResult> {
 }
 
 async function openPopup(requestId: string) {
-  const url = chrome.runtime.getURL(`popup/index.html?requestId=${requestId}`);
+  const url = chrome.runtime.getURL(`src/popup/index.html?requestId=${requestId}`);
   await chrome.windows.create({ url, type: "popup", width: 420, height: 560 });
 }
 

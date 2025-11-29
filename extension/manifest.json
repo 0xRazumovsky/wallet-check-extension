@@ -18,6 +18,6 @@
   ],
   "action": {
     "default_title": "What Did I Just Sign?",
-    "default_popup": "popup/index.html"
+    "default_popup": "src/popup/index.html"
   }
 }
