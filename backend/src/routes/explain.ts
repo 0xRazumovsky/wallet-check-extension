@@ -4,10 +4,12 @@ import { decodeCalldata, getAbi } from "../services/abi.js";
 import { fetchBytecode, analyzeBytecode } from "../services/bytecode.js";
 import { evaluateRisk } from "../services/heuristics.js";
 import { lookupFourByte } from "../services/fourbyte.js";
+import { gatherContractIntel } from "../services/contractIntel.js";
 import {
   ExplainResult,
   type DecodedCall,
   type RiskResult,
+  type ContractIntel,
 } from "../types/index.js";
 
 const router = Router();
@@ -34,17 +36,27 @@ router.post("/", async (req: Request, res: Response) => {
 
     const bytecode = await fetchBytecode(chainId, to);
     const bytecodeMeta = analyzeBytecode(bytecode, Boolean(abiInfo?.abi));
+    const intel = await gatherContractIntel(chainId, to, abiInfo?.source);
 
     const risk = evaluateRisk({
       decoded,
       data,
       bytecodeMeta,
       abiAvailable: Boolean(abiInfo?.abi),
+      intel,
     });
 
-    const explanation = buildExplanation({ decoded, risk });
+    const explanation = buildExplanation({ decoded, risk, intel });
 
-    const result: ExplainResult = { decoded, bytecodeMeta, risk, explanation };
+    const result: ExplainResult = {
+      decoded,
+      bytecodeMeta,
+      risk,
+      explanation,
+      intel,
+      targetAddress: to,
+      chainId,
+    };
     return res.json(result);
   } catch (err) {
     return res.status(500).json({ error: "Unable to explain transaction" });
@@ -54,16 +66,26 @@ router.post("/", async (req: Request, res: Response) => {
 function buildExplanation({
   decoded,
   risk,
+  intel,
 }: {
   decoded: DecodedCall | null;
   risk: RiskResult;
+  intel?: ContractIntel;
 }): string {
   const action = decoded?.humanReadable || decoded?.method || "Unknown action";
   const topReasons = risk.reasons.slice(0, 2).map((r) => r.description);
+  const ageText =
+    intel?.ageDays !== null && intel?.ageDays !== undefined
+      ? `Contract age: ${intel.ageDays} days.`
+      : "";
+  const labelText =
+    intel?.labels?.length
+      ? `Labels: ${intel.labels.map((l) => `${l.source}=${l.label}`).join(", ")}.`
+      : "";
   const reasonText = topReasons.length
     ? `Key risks: ${topReasons.join("; ")}.`
     : "";
-  return `Action: ${action}. Risk level ${risk.level} (score ${risk.score}). ${reasonText}`.trim();
+  return `Action: ${action}. Risk level ${risk.level} (score ${risk.score}). ${ageText} ${labelText} ${reasonText}`.trim();
 }
 
 export default router;

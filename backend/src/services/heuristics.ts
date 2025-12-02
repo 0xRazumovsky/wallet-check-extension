@@ -1,11 +1,12 @@
 import { BigNumberish, formatUnits, toBigInt } from "ethers";
-import { BytecodeMeta, DecodedCall, RiskReason, RiskResult } from "../types/index.js";
+import { BytecodeMeta, ContractIntel, DecodedCall, RiskReason, RiskResult } from "../types/index.js";
 
 export interface RiskContext {
   decoded: DecodedCall | null;
   data: string;
   bytecodeMeta?: BytecodeMeta;
   abiAvailable?: boolean;
+  intel?: ContractIntel;
 }
 
 function pushReason(
@@ -43,6 +44,8 @@ export function evaluateRisk(ctx: RiskContext): RiskResult {
   const reasons: RiskReason[] = [];
   const decoded = ctx.decoded;
   const bytecode = ctx.bytecodeMeta;
+  const intel = ctx.intel;
+  const ageDays = intel?.ageDays;
 
   const methodName = decoded?.method?.toLowerCase?.();
   const selector = ctx.data.slice(0, 10).toLowerCase();
@@ -57,39 +60,6 @@ export function evaluateRisk(ctx: RiskContext): RiskResult {
       score: 50,
       level: "high",
       description: "Approval sets unlimited allowance"
-    }
-  );
-
-  pushReason(
-    reasons,
-    bytecode?.hasDelegatecall === true,
-    {
-      id: "delegatecall",
-      score: 50,
-      level: "high",
-      description: "Contract uses delegatecall which can execute foreign code"
-    }
-  );
-
-  pushReason(
-    reasons,
-    bytecode?.hasSelfdestruct === true,
-    {
-      id: "selfdestruct",
-      score: 50,
-      level: "high",
-      description: "Contract can selfdestruct and remove code"
-    }
-  );
-
-  pushReason(
-    reasons,
-    !ctx.abiAvailable && (bytecode?.opcodes.length ?? 0) > 0,
-    {
-      id: "unverified",
-      score: 45,
-      level: "high",
-      description: "ABI unavailable; contract likely unverified"
     }
   );
 
@@ -159,6 +129,65 @@ export function evaluateRisk(ctx: RiskContext): RiskResult {
       score: 8,
       level: "low",
       description: "Swap through router detected"
+    }
+  );
+
+  pushReason(
+    reasons,
+    Boolean(ageDays !== null && ageDays !== undefined && ageDays < 30),
+    {
+      id: "age-30",
+      score: 55,
+      level: "high",
+      description: `Contract is very new (${ageDays ?? "?"} days old)`
+    }
+  );
+
+  pushReason(
+    reasons,
+    Boolean(ageDays !== null && ageDays !== undefined && ageDays >= 30 && ageDays < 60),
+    {
+      id: "age-60",
+      score: 35,
+      level: "medium",
+      description: `Contract is relatively new (${ageDays ?? "?"} days old)`
+    }
+  );
+
+  const flaggedLabels = intel?.labels?.filter((l) => l.detail || /scam|phish|hack|rug|exploit/i.test(l.label));
+  const flaggedLabelText =
+    flaggedLabels && flaggedLabels.length > 0
+      ? flaggedLabels.map((l) => `${l.source}: ${l.label}`).join("; ")
+      : "";
+  pushReason(
+    reasons,
+    Boolean(flaggedLabels && flaggedLabels.length > 0),
+    {
+      id: "flagged-label",
+      score: 70,
+      level: "high",
+      description: flaggedLabelText
+        ? `Explorer labels suggest risk: ${flaggedLabelText}`
+        : "Explorer labels suggest risk"
+    }
+  );
+
+  const isApproval =
+    methodName === "approve" ||
+    methodName === "increaseallowance" ||
+    methodName === "permit" ||
+    selector === "0x095ea7b3";
+  const spender = decoded?.params?.[0]?.value;
+  const amount = decoded?.params?.[1]?.value ?? decoded?.params?.find((p) => p.name === "value")?.value;
+
+  pushReason(
+    reasons,
+    isApproval,
+    {
+      id: "token-permission",
+      score: 40,
+      level: "medium",
+      description: `This call grants spending rights${spender ? ` to ${spender}` : ""}${amount ? ` for ${toReadableAmount(amount)}` : ""}`
     }
   );
 

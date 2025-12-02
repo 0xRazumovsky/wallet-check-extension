@@ -8,11 +8,28 @@ interface Reason {
   description: string;
 }
 
+interface IntelLabel {
+  source: string;
+  label: string;
+  detail?: string;
+}
+
+interface Intel {
+  labels: IntelLabel[];
+  ageDays: number | null;
+  createdAt: string | null;
+  verified: boolean;
+  abiSource: string | null;
+}
+
 interface ExplainResult {
   decoded: { method?: string; humanReadable?: string; signature?: string; params?: any[] } | null;
   bytecodeMeta: { isProxy?: boolean };
   risk: { score: number; level: string; reasons: Reason[] };
   explanation: string;
+  intel: Intel;
+  targetAddress?: string;
+  chainId?: number;
 }
 
 const badgeColor: Record<string, string> = {
@@ -28,6 +45,9 @@ export default function App() {
   const [requestId, setRequestId] = useState<string | null>(null);
   const [demoLoading, setDemoLoading] = useState(false);
   const [demoError, setDemoError] = useState<string | null>(null);
+  const [whitelisted, setWhitelisted] = useState(false);
+  const [whitelistSaving, setWhitelistSaving] = useState(false);
+  const [whitelistError, setWhitelistError] = useState<string | null>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -43,7 +63,25 @@ export default function App() {
     });
   }, []);
 
+  useEffect(() => {
+    if (!data?.targetAddress) return;
+    chrome.runtime.sendMessage(
+      { type: "IS_WHITELISTED", address: data.targetAddress },
+      (response) => setWhitelisted(Boolean(response?.whitelisted))
+    );
+  }, [data?.targetAddress]);
+
   const topReasons = useMemo(() => data?.risk.reasons.slice(0, 2) ?? [], [data]);
+  const labels = data?.intel?.labels ?? [];
+  const ageText =
+    data?.intel?.ageDays === null || data?.intel?.ageDays === undefined
+      ? "Unknown age"
+      : `${data.intel.ageDays} days`;
+  const labelSummary =
+    labels.length === 0
+      ? "No labels reported by explorers"
+      : labels.map((l) => `${l.source}: ${l.label}`).join(", ");
+  const shortAddress = (addr?: string) => (addr ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : "");
 
   const runDemo = async () => {
     setDemoError(null);
@@ -73,6 +111,23 @@ export default function App() {
       setDemoLoading(false);
       setLoading(false);
     }
+  };
+
+  const addToWhitelist = () => {
+    if (!data?.targetAddress || whitelistSaving) return;
+    setWhitelistSaving(true);
+    setWhitelistError(null);
+    chrome.runtime.sendMessage(
+      { type: "ADD_TO_WHITELIST", address: data.targetAddress },
+      (response) => {
+        setWhitelistSaving(false);
+        if (chrome.runtime.lastError || response?.ok !== true) {
+          setWhitelistError(chrome.runtime.lastError?.message || "Failed to save address");
+          return;
+        }
+        setWhitelisted(true);
+      }
+    );
   };
 
   const decision = (choice: "proceed" | "abort") => {
@@ -125,6 +180,24 @@ export default function App() {
           {data.risk.level.toUpperCase()} • {data.risk.score}
         </span>
       </div>
+
+      {data.targetAddress && (
+        <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-1 text-xs text-slate-700">
+          <div className="flex items-center justify-between gap-2">
+            <div className="font-semibold text-slate-800">Contract {shortAddress(data.targetAddress)}</div>
+            <button
+              className={`px-2 py-1 rounded-md text-[11px] font-semibold ${whitelisted ? "bg-green-100 text-green-700" : "bg-slate-900 text-white hover:bg-slate-800"}`}
+              onClick={addToWhitelist}
+              disabled={whitelisted || whitelistSaving}
+            >
+              {whitelisted ? "Whitelisted" : whitelistSaving ? "Saving..." : "Trust address"}
+            </button>
+          </div>
+          <div>{ageText} • ABI {data.intel?.abiSource ?? "unknown"} • {data.intel?.verified ? "verified" : "unverified"}</div>
+          <div className="text-slate-500">{labelSummary}</div>
+          {whitelistError && <div className="text-red-600">{whitelistError}</div>}
+        </div>
+      )}
 
       <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-3 space-y-2">
         <h2 className="text-sm font-medium text-slate-700">Top risks</h2>

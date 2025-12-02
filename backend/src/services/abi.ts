@@ -1,10 +1,10 @@
 import { Interface, ParamType } from "ethers";
-import { DecodedCall, DecodedParameter } from "../types/index.js";
+import { AbiSource, DecodedCall, DecodedParameter } from "../types/index.js";
 import axios from "axios";
 
 interface AbiCacheEntry {
   abi: any[];
-  source: "sourcify" | "etherscan";
+  source: AbiSource;
 }
 
 const abiCache = new Map<string, AbiCacheEntry>();
@@ -38,7 +38,7 @@ async function fetchSourcifyAbi(
   return null;
 }
 
-function etherscanBase(chainId: number): string | null {
+export function etherscanBase(chainId: number): string | null {
   const map: Record<number, string> = {
     1: "https://api.etherscan.io",
     5: "https://api-goerli.etherscan.io",
@@ -67,7 +67,7 @@ async function fetchEtherscanAbi(
   return null;
 }
 
-export async function getAbi(chainId: number, address?: string) {
+export async function getAbi(chainId: number, address?: string): Promise<AbiCacheEntry | null> {
   if (!address) return null;
   const key = cacheKey(chainId, address);
   if (abiCache.has(key)) return abiCache.get(key)!;

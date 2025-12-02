@@ -1,6 +1,5 @@
 import axios from "axios";
 import { BytecodeMeta } from "../types/index.js";
-import { parseOpcodes } from "../utils/opcodes.js";
 
 function rpcUrl(chainId: number): string {
   const envKey = process.env[`CHAIN_${chainId}_RPC`];
@@ -32,7 +31,8 @@ export async function fetchBytecode(chainId: number, address: string): Promise<s
 }
 
 export function analyzeBytecode(bytecode: string, verified = false): BytecodeMeta {
-  const opcodes = parseOpcodes(bytecode);
+  // Opcode analysis is disabled for now; keep structure for compatibility.
+  const opcodes: string[] = [];
   const isProxy = bytecode.includes(
     "360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc"
   );
